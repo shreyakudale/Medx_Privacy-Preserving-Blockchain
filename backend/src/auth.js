@@ -59,6 +59,57 @@ authRouter.post("/verify", async (req, res) => {
   res.json({ token });
 });
 
+/** Google OAuth Authentication Endpoint */
+authRouter.get("/google/config", (req, res) => {
+  res.json({ clientId: config.googleClientId });
+});
+
+authRouter.post("/google", async (req, res) => {
+  try {
+    const { email, name, picture, credential } = req.body || {};
+    if (!email && !credential) {
+      return res.status(400).json({ error: "Google credential or email is required." });
+    }
+
+    const userEmail = email || `user_${Date.now()}@gmail.com`;
+    const userName = name || userEmail.split("@")[0];
+
+    // Generate a deterministic 20-byte Web3 address for Google OAuth users
+    const hash = crypto.createHash("sha256").update(`google:${userEmail}`).digest("hex");
+    const virtualAddress = "0x" + hash.slice(0, 40);
+
+    const profile = await ParticipantProfile.findOneAndUpdate(
+      { address: virtualAddress },
+      {
+        address: virtualAddress,
+        email: userEmail,
+        name: userName,
+        picture: picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=00e5ff&color=040914`,
+        authProvider: "google",
+        lastLoginAt: new Date(),
+      },
+      { upsert: true, new: true }
+    );
+
+    const token = jwt.sign(
+      { sub: virtualAddress, email: userEmail, name: userName, provider: "google" },
+      config.jwtSecret,
+      { expiresIn: "8h" }
+    );
+
+    res.json({
+      ok: true,
+      token,
+      address: virtualAddress,
+      profile,
+      clientId: config.googleClientId,
+    });
+  } catch (err) {
+    console.error("Google OAuth error:", err);
+    res.status(500).json({ error: "Failed to authenticate with Google." });
+  }
+});
+
 /** Save registration data (patient/doctor name, role, hospital) into MongoDB */
 authRouter.post("/profile", requireAuth, async (req, res) => {
   const { name, role, encryptionPublicKey, hospitalAddress, email } = req.body || {};

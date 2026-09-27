@@ -30,6 +30,7 @@ async function request(path, { method = "GET", body, form } = {}) {
 export const api = {
   nonce: (address) => request(`/auth/nonce?address=${address}`),
   verify: (address, signature) => request("/auth/verify", { method: "POST", body: { address, signature } }),
+  loginGoogle: (payload) => request("/auth/google", { method: "POST", body: payload }),
 
   uploadRecord: (form) => request("/records", { method: "POST", form }),
   confirmRecord: (storageRef, recordId) => request("/records/confirm", { method: "POST", body: { storageRef, recordId } }),

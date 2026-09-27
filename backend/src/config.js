@@ -20,6 +20,8 @@ export const config = {
   issuerKeySecret: required("ISSUER_KEY_SECRET"),
   storageDir: path.resolve(__dirname, "..", process.env.STORAGE_DIR || "storage"),
   contractsFile: path.resolve(__dirname, "contracts.json"),
-  corsOrigin: process.env.CORS_ORIGIN || "http://localhost:5173",
+  corsOrigin: process.env.CORS_ORIGIN || "*",
   maxUploadBytes: Number(process.env.MAX_UPLOAD_MB || 20) * 1024 * 1024,
+  googleClientId: process.env.GOOGLE_CLIENT_ID || "160165812283-client-id.apps.googleusercontent.com",
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || "GOCSPX-client-secret-key",
 };
