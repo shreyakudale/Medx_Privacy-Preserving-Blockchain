@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ethers } from "ethers";
 import { useSession, useAction, Button, Field, Panel, Empty, Pill, Address, useToast } from "../components/ui.jsx";
 import { useLoad, listHospitals } from "../lib/hooks.js";
 import { deployment } from "../lib/chain.js";
