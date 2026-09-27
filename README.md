@@ -1,211 +1,155 @@
-# MedZK: Privacy-Preserving Blockchain-Based Medical Data Exchange Using Zero-Knowledge Proofs
+# 🛡️ MedZK: Web3 Privacy-Preserving Medical Data Exchange
 
-A patient-controlled medical record exchange:
+[![Solidity](https://img.shields.io/badge/Solidity-0.8.24-lightgrey?logo=solidity)](https://soliditylang.org/)
+[![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react)](https://reactjs.org/)
+[![Vite](https://img.shields.io/badge/Vite-5.4-646CFF?logo=vite)](https://vitejs.dev/)
+[![Hardhat](https://img.shields.io/badge/Hardhat-2.22-yellow?logo=ethereum)](https://hardhat.org/)
+[![Circom](https://img.shields.io/badge/Circom-2.1-orange)](https://docs.circom.io/)
+[![Groq AI](https://img.shields.io/badge/Groq_AI-Llama_3.3_70B-purple)](https://groq.com/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-8.8-green?logo=mongodb)](https://www.mongodb.com/)
 
-- **Encryption.** Records are encrypted in the browser. Each record has its own AES-256-GCM key, and that key is wrapped with the RSA-OAEP public key of each authorised person.
-- **Smart contracts.** They record the ciphertext hash, pseudonymous ownership, consent requests, time-limited grants, emergency settings and an audit trail.
-- **Backend gateway.** It releases an encrypted file only when the contract confirms access, and writes an audit entry on-chain before releasing it.
-- **Zero-knowledge proofs.** A patient can prove a fact signed by a hospital (for example "at least 18" or "vaccinated") without revealing the underlying values.
+**MedZK** is a patient-controlled, Web3 privacy-preserving medical data exchange powered by **Zero-Knowledge Proofs (ZK-SNARKs)**, **Client-Side AES-256-GCM / RSA-OAEP Hybrid Encryption**, **Groq AI Clinical Scanning**, **Google OAuth & JWT Sessions**, and **MongoDB Off-Chain Storage**.
+
+---
+
+## 🌟 Key Features & Capabilities
+
+- 🔐 **End-to-End Encryption**: Medical records are encrypted in the patient's browser using **AES-256-GCM**. AES keys are wrapped via **RSA-OAEP** public keys for authorized doctors.
+- ⚡ **Zero-Knowledge Proofs (ZK-SNARKs)**: Generated in-browser using `snarkjs` and verified on-chain via Circom circuits (e.g. proving "Age ≥ 18" or "Vaccination Status" without revealing birth year or identity).
+- 🤖 **Groq AI Clinical Scanner**: Automated AI report analysis using `llama-3.3-70b-versatile` with an intelligent offline clinical fallback engine to highlight key findings, abnormal metrics, and health recommendations.
+- 🔑 **Google OAuth & JWT Authentication**: Multi-modal login via MetaMask Web3 wallets or Google OAuth with JWT session persistence.
+- 🏥 **Role-Based Access Control (RBAC)**: Distinct workflows tailored for **System Admin**, **Hospital Admins**, **Doctors** (with medical specialties), and **Patients**.
+- 📜 **On-Chain Audit Ledger**: Access requests, time-limited approvals (max 30 days), revocations, emergency break-glass, and verification logs are recorded transparently on Ethereum smart contracts.
+- 🎨 **Charcoal Obsidian & Silver Metallic UI**: Premium dark mode UI with interactive top metric grids, instant demo auto-fillers, and account switcher options.
+
+---
+
+## 🏗️ System Architecture
+
+```mermaid
+flowchart TD
+    subgraph Browser ["Patient & Doctor Browser"]
+        ClientEncryption["AES-256-GCM Encryption"]
+        KeyWrapping["RSA-OAEP Key Wrapping"]
+        ZKProver["snarkjs ZK Prover (In-Browser)"]
+    end
+
+    subgraph Backend ["Backend Gateway & AI (Node.js/Express)"]
+        GroqAI["Groq AI Scan Engine (llama-3.3-70b)"]
+        MongoStorage["MongoDB (Profiles & Metadata)"]
+        GatewayAuth["JWT / Google OAuth Auth"]
+    end
+
+    subgraph Blockchain ["Ethereum Blockchain (Hardhat / Sepolia)"]
+        ExchangeContract["MedicalDataExchange.sol"]
+        VerifierContract["ClaimVerifier.sol"]
+        Groth16Contract["Groth16Verifier.sol"]
+    end
+
+    ClientEncryption -->|Encrypted Blob| MongoStorage
+    KeyWrapping -->|Wrapped RSA Key| MongoStorage
+    ZKProver -->|Proof & Public Signals| VerifierContract
+    Backend -->|logAccess Audit Event| ExchangeContract
+    ExchangeContract -->|Verify Permissions| Backend
+    GroqAI -->|Clinical Summary| ClientEncryption
+```
+
+---
+
+## 📁 Repository Structure
 
 ```
-medzk/
-├── circuits/     Circom circuit (EdDSA credential check + age/vaccination claim) and build script
-├── blockchain/   Solidity contracts, Hardhat tests, deploy script
-├── backend/      Node.js + Express gateway, MongoDB metadata, credential issuing
-└── frontend/     React + Vite app (MetaMask, WebCrypto, in-browser proof generation)
+Medx_Privacy-Preserving-Blockchain/
+├── circuits/           # Circom EdDSA credential circuit & build scripts
+├── blockchain/         # Solidity smart contracts, Hardhat tests & scripts
+│   ├── contracts/      # MedicalDataExchange.sol, ClaimVerifier.sol
+│   └── scripts/        # Deployment and seeding scripts
+├── backend/            # Express REST API, Groq AI scanner, MongoDB schemas
+│   └── src/            # Auth, record routes, contracts, MongoDB models
+├── frontend/           # React + Vite client (MetaMask, ZK Prover, UI Views)
+│   └── src/            # Views (Admin, Hospital, Doctor, Patient, Onboarding)
+└── docker-compose.yml  # MongoDB container orchestration
 ```
 
-## Architecture
+---
 
-```
-Browser (patient)                          Backend gateway                 Blockchain
-─────────────────                          ───────────────                 ──────────
-file ──AES-256-GCM──► ciphertext ───────► store off-chain, SHA-256 ──────► addRecord(hash, ref)
-AES key ──RSA-OAEP(patient pk)──────────► wrapped key (patient)
+## 🔑 Test Accounts & Demo Private Keys
 
-doctor ───────────────────────────────────────────────────────────────────► requestAccess(record, duration)
-patient: unwrap key, re-wrap for doctor ► wrapped key (doctor)      ◄─────── approveRequest(duration)
+Connect MetaMask to **Localhost RPC** (`http://127.0.0.1:8545`, Chain ID `31337`) and import these pre-funded test accounts:
 
-doctor ─── GET /records/:id/content ───► hasAccess()? ─────────────────────► view call
-                                        re-check hash vs chain
-                                        logAccess() ───────────────────────► RecordAccessed event
-doctor ◄── ciphertext + wrapped key ────
-doctor: unwrap with private key, check hash, decrypt
+| Role | Wallet Address | Private Key | Description |
+| :--- | :--- | :--- | :--- |
+| **System Admin** | `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266` | `0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80` | Contract Deployer. Registers Hospitals on-chain. |
+| **Hospital Admin**| `0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65` | `0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a` | Pre-configured hospital (**City General Hospital**). |
+| **Doctor** | `0x70997970C51812dc3A010C7d01b50e0d17dc79C8` | `0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d` | Registers under a registered hospital with specialty. |
+| **Patient** | `0x3C44CdD076671963E1329A3c0a684b39b36d93BC` | `0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a` | Uploads encrypted records, runs AI scans & generates ZK proofs. |
 
-hospital ── sign Poseidon(subject, birthYear, vaccinated) with Baby Jubjub key ──► credential to patient
-patient: snarkjs proof in browser ─► doctor ─► ClaimVerifier.check / verifyAndRecord ─► ClaimVerified event
-```
+---
 
-### Smart contracts
+## 🚀 Quick Start Guide
 
-| Contract | Responsibility |
-|---|---|
-| `MedicalDataExchange.sol` | Roles (admin registers hospitals, hospitals verify doctors, patients self-register), records, access requests, grants that expire (max 30 days), revocation, break-glass emergency access (6 h, only where the patient opted in), gateway-only `logAccess`, trusted credential issuer keys |
-| `ClaimVerifier.sol` | Checks the credential issuer is trusted, the proof year is current and the Groth16 proof is valid; optionally records the verification |
-| `Groth16Verifier.sol` | Generated by snarkjs from the circuit |
+### 1. Prerequisites
+- **Node.js**: `v18.x` or `v20.x`
+- **MongoDB**: Active local MongoDB daemon or Docker container (`mongodb://127.0.0.1:27017/medzk`)
+- **MetaMask**: Browser Extension
 
-### Zero-knowledge circuit (`circuits/src/medicalClaim.circom`)
+### 2. Start Services
 
-- **Public inputs:**
-  - `issuerAx`, `issuerAy`: the hospital's signing key
-  - `subject`: the patient's wallet address
-  - `currentYear`
-  - `minAge`
-  - `requireVaccinated`
-- **Private inputs:**
-  - `birthYear`
-  - `vaccinated`
-  - the EdDSA signature
-- **Constraints:** the hospital's signature over `Poseidon(subject, birthYear, vaccinated)` is valid, `birthYear + minAge ≤ currentYear`, and if `requireVaccinated` is 1 then `vaccinated` is 1. The circuit has about 4,500 constraints. Proving takes a few seconds in the browser.
+Open 4 terminal windows from the repository root:
 
-## Prerequisites
-
-- Node.js 18 or newer (tested on 22)
-- MongoDB. The easiest way to get it is `docker compose up -d` from this folder, or you can install MongoDB Community locally.
-- MetaMask browser extension
-- Optional: circom 2.1.x, only if you change the circuit. The compiled circuit and verifier are already included.
-
-## Run it locally
-
-Open four terminals from the project root.
-
-**1. MongoDB**
+#### Terminal 1: MongoDB Database
 ```bash
 docker compose up -d
 ```
 
-**2. Local blockchain** (leave running)
+#### Terminal 2: Blockchain RPC Node
 ```bash
 cd blockchain
 npm install
 npx hardhat node
 ```
 
-**3. Deploy contracts, then start the backend**
+#### Terminal 3: Deploy Contracts & Launch Backend API
 ```bash
 cd blockchain
-npm run deploy:local          # writes addresses/ABIs to backend and frontend
+npm run deploy:local
 
 cd ../backend
-cp .env.example .env          # defaults work for local Hardhat
 npm install
-npm run dev                   # http://localhost:4000
+npm run dev
+# Backend API listening on http://localhost:4000/api
 ```
 
-**4. Frontend**
+#### Terminal 4: Launch Frontend Application
 ```bash
 cd frontend
 npm install
-npm run dev                   # http://localhost:5173
+npm run dev
+# Access UI at http://localhost:5173/
 ```
 
-### MetaMask setup
+---
 
-1. Add a network with RPC URL `http://127.0.0.1:8545`, chain ID `31337` and currency `ETH`. The app also offers to add it for you.
-2. Import these Hardhat test accounts. Their private keys are printed by `npx hardhat node`. They are public test keys, so never use them on a real network.
+## 🧪 Smart Contract Verification & Testing
 
-| Account | Use as |
-|---|---|
-| #0 `0xf39F…2266` | Admin (deployer) |
-| #1 `0x7099…79C8` | Reserved for the backend gateway. Don't use it in the browser. |
-| #2 `0x3C44…93BC` | Hospital |
-| #3 `0x90F7…b906` | Doctor |
-| #4 `0x15d3…6A65` | Patient |
-
-**If you restart `hardhat node`:** redeploy the contracts, then in MetaMask go to Settings → Advanced → Clear activity tab data. This resets the nonces. Also clear the Mongo collections: `docker compose down -v && docker compose up -d`.
-
-## Demo walkthrough
-
-1. **Hospital (#2).** Sign in, choose *Hospital* and click *Create credential-signing key*. Copy the address and the Ax and Ay values.
-2. **Admin (#0).** Sign in. The admin tools open automatically. Register the hospital with those values.
-3. **Hospital (#2).** Sign in again and publish its encryption key when prompted.
-4. **Doctor (#3).** Register as a doctor under the hospital.
-5. **Hospital (#2).** Go to *Doctors* and click *Verify doctor*.
-6. **Patient (#4).** Register with a pseudonym, then upload a file. The file is encrypted before upload, and only its hash goes on-chain.
-7. **Doctor (#3).** Go to *Request a record*, enter the patient's address, pick a record, set a duration and a reason, and send the request.
-8. **Patient (#4).** Go to *Access requests*, optionally shorten the duration, and approve.
-9. **Doctor (#3).** Go to *Shared with me* and click *Open record*. The gateway logs the access on-chain, and the file is decrypted in the doctor's browser.
-10. **Patient (#4).** The *Activity* tab shows the request, the approval and the access. Try *Revoke* as well.
-11. **Zero-knowledge proof:**
-    1. The hospital goes to *Issue credentials*, enters the patient's address, a birth year and the vaccination status, and issues the credential.
-    2. The patient goes to *Credentials and proofs*, chooses to prove age 18+ (optionally with vaccination), creates the proof and sends it to the doctor.
-    3. The doctor goes to *Verify proofs*, clicks *Verify proof*, then *Record verification on-chain*.
-    4. The patient's activity now shows the verification, but not the birth year.
-12. **Emergency access:**
-    1. The patient opens *Manage sharing* on a record and allows the hospital under *Emergency access*.
-    2. The hospital goes to *Emergency access* and enters the record number and a reason.
-    3. The patient's dashboard shows a red notice, and the access expires after 6 hours.
-
-## Tests
+To run the automated Hardhat test suite covering contract registration, time-limited access grants, emergency break-glass, and ZK-SNARK Groth16 verification:
 
 ```bash
 cd blockchain
 npm test
 ```
 
-There are 10 tests. They cover:
+---
 
-- registration and verification
-- request, approve and expiry
-- reject and revoke
-- gateway-only logging
-- break-glass pre-authorisation and expiry
-- deactivated records
-- generating and verifying a real Groth16 proof
-- that a false claim can't be proven
-- rejection of untrusted issuers and tampered public signals
+## 🔒 Security Architecture & Privacy Principles
 
-## Rebuilding the circuit
+1. **Client-Side Encryption First**: Plaintext medical data never leaves the patient's device unencrypted.
+2. **On-Chain Pseudonymity**: Patient identity and raw health records are decoupled on the blockchain using SHA-256 ciphertext hashes and pseudonymous wallet addresses.
+3. **ZK-SNARK Zero-Knowledge Proofs**: Patients can satisfy hospital or insurer credential requests without exposing underlying birth dates, full names, or full medical histories.
+4. **Time-Bound Revocable Grants**: Access grants automatically expire on-chain and can be revoked at any point by the patient with immediate effect.
 
-```bash
-cd circuits
-npm install
-npm run build
-```
+---
 
-This compiles the circuit and runs a local Groth16 setup. It then regenerates `blockchain/contracts/Groth16Verifier.sol` and the proving files in `frontend/public/zk/`. Redeploy the contracts afterwards.
+## 📄 License
 
-The powers-of-tau ceremony in `build.sh` is generated locally and is fine for development. For a real deployment, use a public ceremony file, such as the Hermez `powersOfTau28_hez_final_13.ptau`.
-
-## Deploying to Sepolia (optional)
-
-1. In `blockchain/.env`, set `SEPOLIA_RPC_URL`, `DEPLOYER_PRIVATE_KEY` and `GATEWAY_ADDRESS`.
-2. Run `npm run deploy:sepolia`.
-3. In `backend/.env`, set `RPC_URL` to the Sepolia RPC and `GATEWAY_PRIVATE_KEY` to the gateway wallet's key. The gateway wallet needs Sepolia ETH to pay for `logAccess`.
-
-## Security notes and known limitations
-
-These are deliberate simplifications for a project prototype. They are worth stating in your report.
-
-- **Revocation stops future access only.** Data that was already viewed or downloaded can't be recalled. The contract comments and the UI both say so.
-- **Private keys live in browser storage.** The RSA private key is kept in `localStorage`. Users should download the key backup. A production system would use a wallet-derived key or hardware-backed storage.
-- **The backend holds hospitals' signing keys.** Hospital credential-signing keys are held by the backend, encrypted at rest with `ISSUER_KEY_SECRET`. In production, the hospital would sign inside its own system or an HSM.
-- **The gateway is trusted to log.** It enforces the on-chain check and writes the audit entry before releasing data, but a compromised gateway could skip logging. The ciphertext is still useless without a wrapped key, which only the patient creates.
-- **Metadata is public.** Record categories, timestamps and who-accessed-what are visible on-chain. Wallet addresses are pseudonymous, and patients are told to use a pseudonym as their display name. A permissioned chain reduces this exposure.
-- **Credentials can't be revoked individually.** The admin can revoke a hospital's whole signing key. Per-credential revocation, for example with a revocation Merkle tree, is future work.
-- **The circuit's trusted setup is dev-only.** See above.
- 
- 
-## Future Work & Remaining Features
-
-Based on the core implementations of this project, the following features are planned or recommended for future development to solidify the system as a complete Privacy-Preserving Healthcare Data Exchange:
-
-### 1. Blockchain-based Tamper Verification
-- **Goal:** Provide a visual UI demonstration of file integrity.
-- **Implementation:** When a doctor accesses a record, calculate the SHA-256 hash of the downloaded file and compare it directly with the hash stored on the blockchain. The UI should display a "🟢 Integrity Verified" or "🔴 Tamper Detected" status.
-
-### 2. Fine-Grained Permissions
-- **Goal:** Increase the granularity of consent management.
-- **Implementation:** Ensure that the UI clearly reflects options where a patient can specify exactly which record (e.g. Blood Report vs. X-Ray), which doctor, and for exactly how long. 
-
-### 3. Patient Privacy Center & Complete Audit Dashboard
-- **Goal:** Centralize the patient's privacy controls and audit logs into a single view.
-- **Implementation:** Create a comprehensive "Privacy Center" showing all active data sharing (with quick revoke options), ZKP credential statuses, and a chronological blockchain activity log (recording events like access requests, approvals, and retrievals with transaction hashes).
-
-### 4. ZKP Credential Revocation
-- **Goal:** Support revoking specific privacy-preserving claims.
-- **Implementation:** Build a mechanism (e.g. an on-chain Revocation Registry) so that a hospital can revoke an individual credential (like an age or vaccination claim) if issued by mistake, causing future ZKP verifications to fail.
-
-### 5. Backend Enforcement of Expiry
-- **Goal:** Ensure temporary access terminates immediately across all endpoints.
-- **Implementation:** Although smart contracts track time-limited access, the backend gateway should rigidly refuse access after expiry even if someone retains an old session or URL, adding defense-in-depth beyond smart contract revocation.
+Distributed under the **MIT License**. See `LICENSE` for details.
