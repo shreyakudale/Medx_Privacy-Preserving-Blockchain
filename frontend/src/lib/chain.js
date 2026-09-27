@@ -77,6 +77,9 @@ export function explain(err) {
   if (name && map[name]) return map[name];
   if (str.includes("AlreadyRegistered")) return map.AlreadyRegistered;
   if (str.includes("NotRole")) return map.NotRole;
+  if (str.includes("ENS") || str.includes("resolveName")) {
+    return "Invalid wallet address format. Please enter a valid 42-character Ethereum address (e.g. 0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65).";
+  }
   if (str.includes("unknown custom error")) {
     return "Execution Reverted: This account is already registered, OR the selected hospital is not yet registered on-chain by the Admin.";
   }

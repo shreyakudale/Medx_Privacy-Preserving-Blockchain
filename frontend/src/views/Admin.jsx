@@ -17,7 +17,7 @@ export default function Admin() {
 
   const autofillDemoHospital = () => {
     setForm({
-      address: "0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a",
+      address: "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65",
       name: "City General Hospital",
       ax: "5976787833345688406011467393978316450970937938661523568145160620800090585081",
       ay: "12391355364387553119300753264852232839569616736365099487113787892246083915674",
@@ -28,6 +28,9 @@ export default function Admin() {
   const [register, registering] = useAction(async () => {
     if (!form.address || !form.name || !form.ax || !form.ay) {
       throw new Error("Enter Hospital Address, Name, Ax, and Ay keys.");
+    }
+    if (!ethers.isAddress(form.address)) {
+      throw new Error("Invalid Hospital Wallet Address. Must be a valid 42-character Ethereum address (e.g. 0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65).");
     }
     const tx = await exchange.registerHospital(form.address, form.name, form.ax, form.ay);
     await tx.wait();
