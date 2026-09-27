@@ -20,21 +20,45 @@ export default function App() {
     if (hasCheckedToken) return;
     const t = localStorage.getItem("medzk_token");
     const addr = localStorage.getItem("medzk_address");
-    if (t && addr && window.ethereum) {
-      connectWallet().then(async (wallet) => {
-        if (wallet.address.toLowerCase() === addr.toLowerCase()) {
-          const [participant, admin] = await Promise.all([
-            readParticipant(wallet.exchange, wallet.address),
-            wallet.exchange.admin(),
-          ]);
-          const isAdmin = admin.toLowerCase() === wallet.address.toLowerCase();
-          setSession({ ...wallet, participant, isAdmin });
-          if (isAdmin) setAdminMode(true);
-        } else {
-          setToken(null);
-        }
-      }).catch(console.error).finally(() => setHasCheckedToken(true));
+
+    if (!t || !addr) {
+      setHasCheckedToken(true);
+      return;
+    }
+
+    if (window.ethereum) {
+      connectWallet()
+        .then(async (wallet) => {
+          if (wallet.address.toLowerCase() === addr.toLowerCase()) {
+            const [participant, admin] = await Promise.all([
+              readParticipant(wallet.exchange, wallet.address).catch(() => ({ role: Role.None })),
+              wallet.exchange.admin().catch(() => ""),
+            ]);
+            const isAdmin = admin && admin.toLowerCase() === wallet.address.toLowerCase();
+            setSession({ ...wallet, participant, isAdmin });
+            if (isAdmin) setAdminMode(true);
+          } else {
+            setSession({
+              address: addr,
+              participant: { role: Role.Patient, name: "Google / Web3 User" },
+              isAdmin: false,
+            });
+          }
+        })
+        .catch(() => {
+          setSession({
+            address: addr,
+            participant: { role: Role.Patient, name: "Google / Web3 User" },
+            isAdmin: false,
+          });
+        })
+        .finally(() => setHasCheckedToken(true));
     } else {
+      setSession({
+        address: addr,
+        participant: { role: Role.Patient, name: "Google User" },
+        isAdmin: false,
+      });
       setHasCheckedToken(true);
     }
   }, [hasCheckedToken]);
