@@ -91,6 +91,13 @@ export default function App() {
     window.location.reload();
   };
 
+  const refreshParticipant = async () => {
+    if (session?.exchange && session?.address) {
+      const participant = await readParticipant(session.exchange, session.address).catch(() => session.participant);
+      setSession((s) => ({ ...s, participant }));
+    }
+  };
+
   const handleGoogleAuth = async (res) => {
     const wallet = await connectWallet().catch(() => null);
     let participant = { role: Role.Patient, name: res.profile.name };
