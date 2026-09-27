@@ -283,43 +283,43 @@ function Landing({ onSignIn, busy, onShowKeys }) {
         {/* Right Glass Entrance Card */}
         <div className="glass-card">
           <h2>Welcome to MedZK</h2>
-          <p style={{ color: "var(--muted)", textAlign: "center", fontSize: "0.9rem", marginTop: "-0.5rem" }}>
+          <p style={{ color: "var(--muted)", textAlign: "center", fontSize: "0.88rem", marginTop: "-0.4rem", marginBottom: "0.2rem" }}>
             Connect with Google OAuth or Web3 MetaMask Wallet.
           </p>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "1rem" }}>
-            <Button busy={busy} onClick={onSignIn} className="btn btn-silver" style={{ width: "100%", padding: "1.1rem", fontSize: "1rem" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            <Button busy={busy} onClick={onSignIn} className="btn btn-silver" style={{ width: "100%", padding: "0.8rem 1rem", fontSize: "0.92rem", borderRadius: "10px" }}>
               {busy ? "Authenticating Session..." : "Connect MetaMask Wallet"}
             </Button>
 
-            <Button variant="quiet" onClick={onSignIn} style={{ width: "100%", padding: "0.9rem", background: "rgba(255,255,255,0.06)", border: "1px solid var(--line-strong)", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.6rem" }}>
-              <img src="https://cdn-icons-png.flaticon.com/512/2991/2991148.png" alt="Google" style={{ width: "18px" }} />
+            <Button variant="quiet" onClick={onSignIn} style={{ width: "100%", padding: "0.75rem 1rem", fontSize: "0.9rem", borderRadius: "10px", background: "rgba(255,255,255,0.05)", border: "1px solid var(--line-strong)", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.6rem" }}>
+              <img src="https://cdn-icons-png.flaticon.com/512/2991/2991148.png" alt="Google" style={{ width: "17px" }} />
               <span>Continue with Google OAuth</span>
             </Button>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "1rem", margin: "0.5rem 0", color: "var(--muted)", fontSize: "0.8rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.8rem", margin: "0.2rem 0", color: "var(--muted)", fontSize: "0.75rem", letterSpacing: "1px" }}>
             <div style={{ flex: 1, height: "1px", background: "var(--line)" }}></div>
             <span>SUPPORTED ROLES</span>
             <div style={{ flex: 1, height: "1px", background: "var(--line)" }}></div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem", fontSize: "0.8rem", color: "var(--muted)" }}>
-            <div style={{ padding: "0.6rem", background: "rgba(255,255,255,0.03)", borderRadius: "var(--r-sm)", border: "1px solid var(--line)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", fontSize: "0.78rem", color: "var(--muted)" }}>
+            <div style={{ padding: "0.5rem 0.65rem", background: "rgba(255,255,255,0.03)", borderRadius: "var(--r-sm)", border: "1px solid var(--line)" }}>
               🔒 <strong style={{ color: "#fff" }}>Patient</strong> Access Control
             </div>
-            <div style={{ padding: "0.6rem", background: "rgba(255,255,255,0.03)", borderRadius: "var(--r-sm)", border: "1px solid var(--line)" }}>
-              🩺 <strong style={{ color: "#fff" }}>Doctor</strong> Records Verification
+            <div style={{ padding: "0.5rem 0.65rem", background: "rgba(255,255,255,0.03)", borderRadius: "var(--r-sm)", border: "1px solid var(--line)" }}>
+              🩺 <strong style={{ color: "#fff" }}>Doctor</strong> Verification
             </div>
-            <div style={{ padding: "0.6rem", background: "rgba(255,255,255,0.03)", borderRadius: "var(--r-sm)", border: "1px solid var(--line)" }}>
+            <div style={{ padding: "0.5rem 0.65rem", background: "rgba(255,255,255,0.03)", borderRadius: "var(--r-sm)", border: "1px solid var(--line)" }}>
               🏥 <strong style={{ color: "#fff" }}>Hospital</strong> Credential Issuer
             </div>
-            <div style={{ padding: "0.6rem", background: "rgba(255,255,255,0.03)", borderRadius: "var(--r-sm)", border: "1px solid var(--line)" }}>
+            <div style={{ padding: "0.5rem 0.65rem", background: "rgba(255,255,255,0.03)", borderRadius: "var(--r-sm)", border: "1px solid var(--line)" }}>
               ⚡ <strong style={{ color: "#fff" }}>System Admin</strong> Deployer
             </div>
           </div>
 
-          <div style={{ padding: "0.8rem", background: "rgba(6, 182, 212, 0.05)", borderRadius: "var(--r-sm)", border: "1px solid rgba(6, 182, 212, 0.2)", fontSize: "0.8rem", color: "#e2e8f0" }}>
+          <div style={{ padding: "0.65rem 0.85rem", background: "rgba(0, 229, 255, 0.05)", borderRadius: "var(--r-sm)", border: "1px solid rgba(0, 229, 255, 0.2)", fontSize: "0.78rem", color: "#e2e8f0" }}>
             💡 <strong>To log in as System Admin:</strong> Open MetaMask extension, select <strong>Account 0</strong> (0xf39F...2266), then click Connect Wallet!
           </div>
         </div>
