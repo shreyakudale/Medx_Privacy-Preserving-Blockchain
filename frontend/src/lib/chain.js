@@ -30,13 +30,33 @@ export async function connectWallet() {
   }
   const p2 = new BrowserProvider(window.ethereum);
   const signer = await p2.getSigner();
+  const address = await signer.getAddress();
+
+  // If connected to local Hardhat, ensure the account has test ETH for gas
+  if (Number(deployment.chainId) === 31337) {
+    try {
+      const bal = await p2.getBalance(address);
+      if (bal < 1000000000000000000n) { // less than 1 ETH
+        await p2.send("hardhat_setBalance", [address, "0x56BC75E2D63100000"]); // 100 ETH
+      }
+    } catch (e) {
+      console.warn("Could not auto-fund local account:", e);
+    }
+  }
+
   return {
     provider: p2,
     signer,
-    address: (await signer.getAddress()),
+    address,
     exchange: new Contract(deployment.MedicalDataExchange.address, deployment.MedicalDataExchange.abi, signer),
     claim: new Contract(deployment.ClaimVerifier.address, deployment.ClaimVerifier.abi, signer),
   };
+}
+
+export async function fundAccount(address) {
+  if (!window.ethereum) return;
+  const provider = new BrowserProvider(window.ethereum);
+  await provider.send("hardhat_setBalance", [address, "0x56BC75E2D63100000"]); // 100 ETH
 }
 
 export async function readParticipant(exchange, address) {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { connectWallet, readParticipant, RoleName, Role, deployment } from "./lib/chain.js";
+import { connectWallet, readParticipant, fundAccount, RoleName, Role, deployment } from "./lib/chain.js";
 import { api, setToken } from "./lib/api.js";
 import { SessionContext, Button, useAction, Address, useToast } from "./components/ui.jsx";
 import Onboarding from "./views/Onboarding.jsx";
@@ -10,6 +10,7 @@ import Hospital from "./views/Hospital.jsx";
 import Admin from "./views/Admin.jsx";
 
 export default function App() {
+  const toast = useToast();
   const [session, setSession] = useState(null);
   const [adminMode, setAdminMode] = useState(false);
   const [hasCheckedToken, setHasCheckedToken] = useState(false);
@@ -83,6 +84,13 @@ export default function App() {
     }
   });
 
+  const claimTestEth = async () => {
+    if (session?.address) {
+      await fundAccount(session.address);
+      toast("🚰 Added 100 Test ETH to your wallet for gas fees!");
+    }
+  };
+
   const logout = () => {
     setToken(null);
     localStorage.removeItem("medzk_token");
@@ -154,6 +162,10 @@ export default function App() {
 
           <button className="rail-switch" onClick={() => setShowKeysModal(!showKeysModal)} style={{ borderColor: "var(--teal)", color: "var(--teal)" }}>
             🔑 10,000 ETH Keys
+          </button>
+
+          <button className="rail-switch" onClick={claimTestEth} style={{ borderColor: "var(--accent-cyan)", color: "var(--accent-cyan)" }}>
+            🚰 Claim 100 Test ETH
           </button>
 
           {isAdmin ? (
