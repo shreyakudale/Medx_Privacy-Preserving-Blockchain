@@ -1,0 +1,4 @@
+# Only needed for public testnets. Local Hardhat needs nothing here.
+SEPOLIA_RPC_URL=
+DEPLOYER_PRIVATE_KEY=
+GATEWAY_ADDRESS=
