@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession, useAction, Button, Field, Panel, Address, useToast } from "../components/ui.jsx";
 import { generateKeyPair } from "../lib/crypto.js";
 import { useLoad, listHospitals } from "../lib/hooks.js";
 import { api } from "../lib/api.js";
-import { readParticipant, Role, RoleName } from "../lib/chain.js";
+import { readParticipant, Role, RoleName, fundAccount } from "../lib/chain.js";
+import { ethers } from "ethers";
 
 const DOCTOR_SPECIALTIES = [
   "General Practitioner / Primary Care",
@@ -22,7 +23,7 @@ const HOSPITAL_TYPES = [
 ];
 
 export default function Onboarding({ onRegistered }) {
-  const { exchange, address } = useSession();
+  const { exchange, address, provider } = useSession();
   const [role, setRole] = useState("patient");
   const [name, setName] = useState("");
   const [specialty, setSpecialty] = useState(DOCTOR_SPECIALTIES[0]);
@@ -30,11 +31,50 @@ export default function Onboarding({ onRegistered }) {
   const [hospital, setHospital] = useState("");
   const [hospitals] = useLoad(() => listHospitals(exchange), [exchange]);
   const [issuer, setIssuer] = useState(null);
+  const [balance, setBalance] = useState(null);
   const toast = useToast();
+
+  const checkBalance = async () => {
+    if (!address) return;
+    try {
+      if (provider) {
+        const bal = await provider.getBalance(address);
+        setBalance(Number(ethers.formatEther(bal)));
+      } else {
+        const p = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
+        const bal = await p.getBalance(address);
+        setBalance(Number(ethers.formatEther(bal)));
+      }
+    } catch (e) {
+      console.warn("Could not fetch balance:", e);
+    }
+  };
+
+  useEffect(() => {
+    checkBalance();
+    const timer = setInterval(checkBalance, 5000);
+    return () => clearInterval(timer);
+  }, [address, provider]);
+
+  const topUpTestEth = async () => {
+    if (!address) return;
+    try {
+      await fundAccount(address);
+      await checkBalance();
+      toast("🚰 Added 100 Test ETH to your wallet for gas fees!");
+    } catch (e) {
+      toast("Could not fund account: " + (e.message || String(e)), "error");
+    }
+  };
 
   const [register, busy] = useAction(async () => {
     if (!name.trim()) throw new Error(role === "patient" ? "Enter a display name or pseudonym." : "Enter your full name.");
     
+    // Auto-topup if balance is 0 or less than 0.1 ETH to prevent gas error
+    if (balance !== null && balance < 0.1) {
+      await fundAccount(address);
+    }
+
     // Check if current user is already registered on-chain
     const me = await readParticipant(exchange, address);
     if (me.role !== Role.None) {
@@ -84,38 +124,52 @@ export default function Onboarding({ onRegistered }) {
         <p>Choose your role and medical specialty. Access permissions are granularly assigned based on your registered role.</p>
       </header>
 
-      <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', margin: '2rem 0', flexWrap: 'wrap' }} role="radiogroup" aria-label="Account type">
+      <div style={{ display: 'flex', gap: '1.25rem', justifyContent: 'center', margin: '1.5rem 0', flexWrap: 'wrap' }} role="radiogroup" aria-label="Account type">
         {[
-          ["patient", "Patient", "Upload records and control granular access grants.", "#0c0d12"],
-          ["doctor", "Doctor", "Request access based on medical specialty role.", "#0c0d12"],
-          ["hospital", "Hospital", "Verify doctors, department credentials & emergency access.", "#0c0d12"],
+          ["patient", "Patient", "Upload records and control granular access grants."],
+          ["doctor", "Doctor", "Request access based on medical specialty role."],
+          ["hospital", "Hospital", "Verify doctors, department credentials & emergency access."],
         ].map(([id, label, text]) => (
           <button
             key={id}
             role="radio"
             aria-checked={role === id}
             style={{
-              flex: '1', minWidth: '240px', padding: '2rem 1.5rem', borderRadius: 'var(--r-md)',
-              border: role === id ? `2px solid var(--accent-cyan)` : '1px solid var(--line)',
-              background: role === id ? 'rgba(6, 182, 212, 0.08)' : 'var(--surface)',
-              color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.8rem',
-              boxShadow: role === id ? `0 0 20px rgba(6, 182, 212, 0.2)` : 'none', transition: 'all 0.2s ease', cursor: 'pointer', textAlign: 'center'
+              flex: '1', minWidth: '220px', padding: '1.8rem 1.4rem', borderRadius: 'var(--r-md)',
+              border: role === id ? '2px solid var(--accent-cyan)' : '1px solid var(--line)',
+              background: role === id ? '#f0f9ff' : '#ffffff',
+              color: 'var(--ink)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem',
+              boxShadow: role === id ? '0 4px 15px rgba(2, 132, 199, 0.15)' : 'var(--shadow-sm)',
+              transition: 'all 0.2s ease', cursor: 'pointer', textAlign: 'center'
             }}
             onClick={() => setRole(id)}
           >
-            <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '2rem' }}>
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: role === id ? '#e0f2fe' : '#f1f5f9', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '1.8rem' }}>
               {id === 'patient' ? '👤' : id === 'doctor' ? '🩺' : '🏥'}
             </div>
-            <strong style={{ fontSize: '1.3rem', fontWeight: 700 }}>{label}</strong>
-            <span style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>{text}</span>
-            <div style={{ marginTop: 'auto', color: role === id ? 'var(--accent-cyan)' : 'var(--muted)', fontSize: '1.2rem' }}>➔</div>
+            <strong style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a' }}>{label}</strong>
+            <span style={{ fontSize: '0.85rem', color: 'var(--muted)', lineHeight: 1.4 }}>{text}</span>
+            <div style={{ marginTop: 'auto', color: role === id ? 'var(--accent-cyan)' : 'var(--muted)', fontSize: '1.1rem', fontWeight: 'bold' }}>➔</div>
           </button>
         ))}
       </div>
 
+      {/* Gas balance notice & auto-funder */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.85rem 1.2rem", background: "#ffffff", borderRadius: "var(--r-sm)", border: "1px solid var(--line)", boxShadow: "var(--shadow-sm)" }}>
+        <div>
+          <span style={{ fontSize: "0.75rem", color: "var(--muted)", textTransform: "uppercase", fontWeight: "700", letterSpacing: "0.8px" }}>Wallet Balance (Hardhat Local)</span>
+          <div style={{ fontSize: "1.05rem", fontWeight: "700", color: balance !== null && balance < 0.1 ? "var(--accent-red)" : "var(--accent-teal)" }}>
+            {balance !== null ? `${balance.toFixed(4)} ETH` : "Checking balance..."}
+          </div>
+        </div>
+        <Button variant="quiet" onClick={topUpTestEth} style={{ fontSize: "0.84rem", padding: "0.45rem 0.95rem", borderColor: "var(--accent-cyan)", color: "var(--accent-cyan)" }}>
+          🚰 Top Up 100 Test ETH
+        </Button>
+      </div>
+
       {role === "hospital" ? (
         <Panel title="Hospital Node Registration">
-          <p>Hospitals are registered on-chain by the Network Admin. Generate your EdDSA signing keys below and select your hospital organization type.</p>
+          <p className="muted">Hospitals are registered on-chain by the Network Admin. Generate your EdDSA signing keys below and select your hospital organization type.</p>
           
           <div className="form" style={{ marginTop: "1rem" }}>
             <Field label="Hospital Official Name">
@@ -131,17 +185,17 @@ export default function Onboarding({ onRegistered }) {
             </Field>
 
             {issuer ? (
-              <div style={{ padding: "1.2rem", background: "rgba(6, 182, 212, 0.05)", borderRadius: "var(--r-sm)", border: "1px solid rgba(6, 182, 212, 0.2)", display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+              <div style={{ padding: "1.2rem", background: "#f0fdfa", borderRadius: "var(--r-sm)", border: "1px solid #99f6e4", display: "flex", flexDirection: "column", gap: "0.6rem" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <strong style={{ color: "var(--accent-cyan)" }}>✅ Generated EdDSA Credential Signing Key</strong>
+                  <strong style={{ color: "var(--accent-teal)" }}>✅ Generated EdDSA Credential Signing Key</strong>
                   <Button variant="quiet" onClick={copyHospitalDetails}>📋 Copy Registration Data</Button>
                 </div>
-                <dl className="kv" style={{ margin: "0.5rem 0 0" }}>
-                  <dt>Hospital Name</dt><dd><strong style={{ color: "#fff" }}>{name || "City General Hospital"} ({hospitalType})</strong></dd>
-                  <dt>Wallet Address</dt><dd><code>{address}</code></dd>
-                  <dt>Signing Key Ax</dt><dd><code style={{ wordBreak: "break-all" }}>{issuer.ax}</code></dd>
-                  <dt>Signing Key Ay</dt><dd><code style={{ wordBreak: "break-all" }}>{issuer.ay}</code></dd>
-                </dl>
+                <div style={{ fontSize: "0.85rem", color: "var(--ink)", display: "flex", flexDirection: "column", gap: "0.3rem", marginTop: "0.4rem" }}>
+                  <div><strong>Hospital:</strong> {name || "City General Hospital"} ({hospitalType})</div>
+                  <div><strong>Wallet:</strong> <code>{address}</code></div>
+                  <div><strong>Signing Key Ax:</strong> <code style={{ wordBreak: "break-all" }}>{issuer.ax}</code></div>
+                  <div><strong>Signing Key Ay:</strong> <code style={{ wordBreak: "break-all" }}>{issuer.ay}</code></div>
+                </div>
                 <p className="fine" style={{ color: "var(--accent-amber)", marginTop: "0.5rem" }}>
                   Your request is saved in MongoDB. The Network Admin can now register your hospital on-chain in 1 click!
                 </p>

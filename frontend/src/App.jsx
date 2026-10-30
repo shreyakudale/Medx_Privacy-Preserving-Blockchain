@@ -362,21 +362,13 @@ function Landing({ onSignIn, busy, onShowKeys, onGoogleAuth }) {
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", fontSize: "0.78rem", color: "var(--muted)" }}>
-            <div style={{ padding: "0.5rem 0.65rem", background: "rgba(255,255,255,0.03)", borderRadius: "var(--r-sm)", border: "1px solid var(--line)" }}>
-              🔒 <strong style={{ color: "#fff" }}>Patient</strong> Access Control
-            </div>
-            <div style={{ padding: "0.5rem 0.65rem", background: "rgba(255,255,255,0.03)", borderRadius: "var(--r-sm)", border: "1px solid var(--line)" }}>
-              🩺 <strong style={{ color: "#fff" }}>Doctor</strong> Verification
-            </div>
-            <div style={{ padding: "0.5rem 0.65rem", background: "rgba(255,255,255,0.03)", borderRadius: "var(--r-sm)", border: "1px solid var(--line)" }}>
-              🏥 <strong style={{ color: "#fff" }}>Hospital</strong> Credential Issuer
-            </div>
-            <div style={{ padding: "0.5rem 0.65rem", background: "rgba(255,255,255,0.03)", borderRadius: "var(--r-sm)", border: "1px solid var(--line)" }}>
-              ⚡ <strong style={{ color: "#fff" }}>System Admin</strong> Deployer
-            </div>
+            <div style={{ padding: "0.6rem 0.75rem", background: "#f8fafc", borderRadius: "var(--r-sm)", border: "1px solid var(--line)", color: "var(--muted)" }}>🔒 <strong style={{ color: "#0f172a" }}>Patient</strong> Access Control</div>
+            <div style={{ padding: "0.6rem 0.75rem", background: "#f8fafc", borderRadius: "var(--r-sm)", border: "1px solid var(--line)", color: "var(--muted)" }}>🩺 <strong style={{ color: "#0f172a" }}>Doctor</strong> Verification</div>
+            <div style={{ padding: "0.6rem 0.75rem", background: "#f8fafc", borderRadius: "var(--r-sm)", border: "1px solid var(--line)", color: "var(--muted)" }}>🏥 <strong style={{ color: "#0f172a" }}>Hospital</strong> Credential Issuer</div>
+            <div style={{ padding: "0.6rem 0.75rem", background: "#f8fafc", borderRadius: "var(--r-sm)", border: "1px solid var(--line)", color: "var(--muted)" }}>⚡ <strong style={{ color: "#0f172a" }}>System Admin</strong> Deployer</div>
           </div>
 
-          <div style={{ padding: "0.65rem 0.85rem", background: "rgba(0, 229, 255, 0.05)", borderRadius: "var(--r-sm)", border: "1px solid rgba(0, 229, 255, 0.2)", fontSize: "0.78rem", color: "#e2e8f0" }}>
+          <div style={{ padding: "0.75rem 0.95rem", background: "#f0f9ff", borderRadius: "var(--r-sm)", border: "1px solid #bae6fd", fontSize: "0.82rem", color: "#0369a1" }}>
             💡 <strong>To log in as System Admin:</strong> Open MetaMask extension, select <strong>Account 0</strong> (0xf39F...2266), then click Connect Wallet!
           </div>
         </div>
@@ -415,12 +407,12 @@ function GoogleOAuthModal({ onClose, onAuthenticated }) {
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(4, 9, 20, 0.85)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem" }}>
-      <div className="glass-card" style={{ maxWidth: "460px", border: "1px solid rgba(0, 229, 255, 0.3)", boxShadow: "0 25px 60px rgba(0, 229, 255, 0.18)" }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(15, 23, 42, 0.45)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem" }}>
+      <div className="glass-card" style={{ maxWidth: "480px", border: "1px solid var(--line)", boxShadow: "0 20px 45px rgba(15, 23, 42, 0.15)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
             <img src="https://cdn-icons-png.flaticon.com/512/2991/2991148.png" alt="Google" style={{ width: "22px" }} />
-            <h3 style={{ margin: 0, color: "#fff", fontSize: "1.15rem" }}>Google OAuth 2.0 Authorization</h3>
+            <h3 style={{ margin: 0, color: "var(--ink)", fontSize: "1.2rem" }}>Google OAuth 2.0 Authorization</h3>
           </div>
           <button className="link" onClick={onClose} style={{ fontSize: "1.1rem" }}>✕</button>
         </div>

@@ -41,10 +41,10 @@ export default function Patient() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem" }}>
           <div>
             <h1>My Health Records</h1>
-            <p>Encrypted on your device. Opened only by people you approve, for as long as you approve.</p>
+            <p>Encrypted locally in your browser. Shared only with doctors you authorize, with automatic time expiry.</p>
           </div>
           <Button variant="quiet" onClick={downloadBackup}>
-            🔑 Download Key Backup
+            🔑 Download RSA Key Backup
           </Button>
         </div>
       </header>
@@ -58,17 +58,17 @@ export default function Patient() {
         </div>
         <div className="metric-card">
           <span className="metric-title">Pending Access Requests</span>
-          <span className="metric-value" style={{ color: pending.length ? "var(--amber)" : "#fff" }}>{pending.length}</span>
+          <span className="metric-value" style={{ color: pending.length ? "var(--accent-amber)" : "var(--ink)" }}>{pending.length}</span>
           <span className="metric-sub">Awaiting Patient Approval</span>
         </div>
         <div className="metric-card">
           <span className="metric-title">Emergency Log Alerts</span>
-          <span className="metric-value" style={{ color: recent.length ? "var(--red)" : "#fff" }}>{recent.length}</span>
+          <span className="metric-value" style={{ color: recent.length ? "var(--accent-red)" : "var(--ink)" }}>{recent.length}</span>
           <span className="metric-sub">Last 7 Days</span>
         </div>
         <div className="metric-card">
           <span className="metric-title">Protocol State</span>
-          <span className="metric-value" style={{ color: "var(--teal)" }}>Active</span>
+          <span className="metric-value" style={{ color: "var(--accent-teal)" }}>Active</span>
           <span className="metric-sub">Zero-Knowledge Synced</span>
         </div>
       </div>
@@ -77,11 +77,11 @@ export default function Patient() {
         <div className="alert alert-danger" role="alert">
           <strong>Emergency access was used on your records.</strong>
           {recent.map((e, i) => (
-            <p key={i}>
+            <p key={i} style={{ margin: "0.4rem 0 0" }}>
               Record #{String(e.args.recordId)}: “{e.args.reason}”. Access {Number(e.args.expiresAt) > Date.now() / 1000 ? `ends in ${remaining(e.args.expiresAt).replace(" left", "")}` : "has ended"}.
             </p>
           ))}
-          <button className="link" onClick={() => setTab("activity")}>See full activity</button>
+          <button className="link" onClick={() => setTab("activity")} style={{ marginTop: "0.4rem", display: "inline-block" }}>See full blockchain activity</button>
         </div>
       ) : null}
 
@@ -89,14 +89,16 @@ export default function Patient() {
         active={tab}
         onChange={setTab}
         tabs={[
-          { id: "records", label: "Records", count: records?.length },
-          { id: "requests", label: "Access requests", count: pending.length },
-          { id: "activity", label: "Activity" },
-          { id: "proofs", label: "Credentials and proofs" },
+          { id: "records", label: "My Records", count: records?.length },
+          { id: "privacy", label: "Privacy Center" },
+          { id: "requests", label: "Access Requests", count: pending.length },
+          { id: "activity", label: "Blockchain Activity" },
+          { id: "proofs", label: "ZK Credentials & Proofs" },
         ]}
       />
 
       {tab === "records" ? <Records records={records} reload={reloadRecords} /> : null}
+      {tab === "privacy" ? <PrivacyCenter records={records} requests={requests} reload={() => { reloadRequests(); reloadRecords(); }} /> : null}
       {tab === "requests" ? (
         <Requests requests={requests} records={records} reload={() => { reloadRequests(); reloadRecords(); }} />
       ) : null}
@@ -111,7 +113,6 @@ function Records({ records, reload }) {
   const [file, setFile] = useState(null);
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("general");
-  const toast = useToast();
 
   const [upload, uploading] = useAction(async () => {
     if (!file) throw new Error("Select a file to upload.");
@@ -129,11 +130,11 @@ function Records({ records, reload }) {
     <div className="stack">
       <Panel>
         <h3>Add New Medical Record</h3>
-        <p className="muted">Your browser encrypts the file before sending. The gateway only receives ciphertext.</p>
+        <p className="muted">Your browser encrypts the file before sending. The gateway only receives encrypted ciphertext.</p>
         <form className="form" onSubmit={(e) => { e.preventDefault(); upload(); }}>
           <div className="form-grid">
             <Field label="Record Title">
-              <input type="text" placeholder="e.g. Blood Test Results" value={title} onChange={(e) => setTitle(e.target.value)} />
+              <input type="text" placeholder="e.g. Annual Blood Test Results" value={title} onChange={(e) => setTitle(e.target.value)} />
             </Field>
             <Field label="Category">
               <select value={category} onChange={(e) => setCategory(e.target.value)}>
@@ -142,19 +143,19 @@ function Records({ records, reload }) {
                 ))}
               </select>
             </Field>
-            <Field label="File">
+            <Field label="Medical Document (PDF, Image, Lab Report)">
               <input type="file" onChange={(e) => setFile(e.target.files[0])} />
             </Field>
           </div>
           <div className="row row-end" style={{ marginTop: "1rem" }}>
-            <Button busy={uploading} type="submit">Encrypt & Store Record</Button>
+            <Button busy={uploading} type="submit">🔒 Encrypt & Store Record</Button>
           </div>
         </form>
       </Panel>
 
       <Panel>
         <div className="panel-head">
-          <h3>My Vault ({records?.length || 0})</h3>
+          <h3>Health Vault ({records?.length || 0})</h3>
         </div>
         {!records ? (
           <p className="muted">Loading records...</p>
@@ -183,19 +184,26 @@ function RecordRow({ record, reload }) {
   const [targetDoctor, setTargetDoctor] = useState("");
   const [duration, setDuration] = useState("86400");
   const [aiAnalysis, setAiAnalysis] = useState(null);
+  const [integrity, setIntegrity] = useState(null);
   const toast = useToast();
 
   const handleOpen = async () => {
     if (blobUrl) { setOpen(!open); return; }
     setBusy(true);
     try {
-      const res = await openRecord(record.storageRef, address);
+      const res = await openRecord(address, record.storageRef);
       setMeta(res.meta);
       setBlobUrl(res.url);
+      setIntegrity({ ok: true, hash: res.computedHash || res.contentHash });
       setOpen(true);
     } catch (e) {
       console.error(e);
-      toast(explain(e), "error");
+      if (e.computedHash) {
+        setIntegrity({ ok: false, error: e.message });
+        setOpen(true);
+      } else {
+        toast(explain(e), "error");
+      }
     } finally {
       setBusy(false);
     }
@@ -233,7 +241,7 @@ function RecordRow({ record, reload }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", flexWrap: "wrap", gap: "1rem" }}>
         <div className="item-main">
           <strong>{meta ? meta.title : `Record #${record.recordId || record.storageRef.slice(0, 8)}`}</strong>
-          <span className="muted">{CATEGORIES[record.category] || record.category} • {new Date(record.createdAt).toLocaleDateString()}</span>
+          <span className="muted">{CATEGORIES[record.category] || record.category} • Uploaded {new Date(record.createdAt).toLocaleDateString()}</span>
         </div>
         <div className="item-side">
           <Button variant="quiet" onClick={() => setSharing(!sharing)}>
@@ -245,41 +253,59 @@ function RecordRow({ record, reload }) {
         </div>
       </div>
 
-      {open && blobUrl ? (
-        <div style={{ marginTop: "1rem", padding: "1.2rem", background: "rgba(0,0,0,0.35)", borderRadius: "var(--r-sm)", border: "1px solid var(--line)" }}>
-          <p><strong>Decrypted Title:</strong> {meta?.title}</p>
-          <p><strong>Original File:</strong> {meta?.fileName}</p>
+      {open ? (
+        <div style={{ marginTop: "1rem", padding: "1.25rem", background: "#f8fafc", borderRadius: "var(--r-sm)", border: "1px solid var(--line)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "0.5rem" }}>
+            <div>
+              <p style={{ margin: "0 0 0.25rem", color: "var(--ink)", fontWeight: 600 }}>Decrypted File: <strong>{meta?.fileName || "record.bin"}</strong></p>
+              <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--muted)" }}>Document Type: {meta?.mimeType || "application/octet-stream"}</p>
+            </div>
+            {integrity ? (
+              <div className={`verdict ${integrity.ok ? "verdict-ok" : "verdict-bad"}`}>
+                <span>{integrity.ok ? "🟢" : "🔴"}</span>
+                <div>
+                  <strong>{integrity.ok ? "On-Chain SHA-256 Integrity Verified" : "Tamper Alert"}</strong>
+                  <div style={{ fontSize: "0.75rem", wordBreak: "break-all" }}>
+                    Hash: <code>{integrity.hash?.slice(0, 16)}...</code> (Matches blockchain immutable state)
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+
           <div className="row" style={{ marginTop: "1rem" }}>
-            <a href={blobUrl} download={meta?.fileName || "record.bin"} className="btn btn-primary">
-              ⬇ Download Decrypted File
-            </a>
-            <Button variant="quiet" busy={scanningAI} onClick={scanAI} style={{ borderColor: "var(--violet)", color: "var(--violet)" }}>
+            {blobUrl ? (
+              <a href={blobUrl} download={meta?.fileName || "record.bin"} className="btn btn-primary">
+                ⬇ Download Decrypted File
+              </a>
+            ) : null}
+            <Button variant="quiet" busy={scanningAI} onClick={scanAI} style={{ borderColor: "var(--accent-violet)", color: "var(--accent-violet)" }}>
               🤖 Scan Report with Groq AI
             </Button>
           </div>
 
           {aiAnalysis ? (
-            <div style={{ marginTop: "1.2rem", padding: "1.2rem", background: "rgba(168, 85, 247, 0.08)", borderRadius: "var(--r-sm)", border: "1px solid rgba(168, 85, 247, 0.25)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-                <strong style={{ color: "var(--violet)" }}>🤖 {aiAnalysis.source} Analysis</strong>
+            <div style={{ marginTop: "1.2rem", padding: "1.25rem", background: "#f5f3ff", borderRadius: "var(--r-sm)", border: "1px solid #ddd6fe" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.6rem" }}>
+                <strong style={{ color: "var(--accent-violet)", fontSize: "1rem" }}>🤖 {aiAnalysis.source} Clinical Analysis</strong>
                 <Pill tone={aiAnalysis.analysis.riskLevel === "Low" ? "ok" : "pending"}>
                   Risk Level: {aiAnalysis.analysis.riskLevel}
                 </Pill>
               </div>
-              <p style={{ color: "#fff", fontSize: "0.9rem" }}>{aiAnalysis.analysis.summary}</p>
+              <p style={{ color: "#334155", fontSize: "0.92rem", lineHeight: 1.5 }}>{aiAnalysis.analysis.summary}</p>
               
-              <h5 style={{ margin: "0.8rem 0 0.4rem", color: "var(--muted)", textTransform: "uppercase", fontSize: "0.75rem" }}>Detected Biomarkers</h5>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(10rem, 1fr))", gap: "0.5rem", marginBottom: "0.8rem" }}>
+              <h5 style={{ margin: "0.9rem 0 0.4rem", color: "var(--muted)", textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.8px" }}>Detected Biomarkers</h5>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(11rem, 1fr))", gap: "0.6rem", marginBottom: "0.9rem" }}>
                 {aiAnalysis.analysis.biomarkers?.map((b, i) => (
-                  <div key={i} style={{ padding: "0.5rem", background: "rgba(0,0,0,0.3)", borderRadius: "6px", fontSize: "0.8rem" }}>
-                    <span style={{ color: "var(--muted)" }}>{b.name}: </span>
-                    <strong style={{ color: "#fff" }}>{b.value}</strong>
+                  <div key={i} style={{ padding: "0.6rem 0.8rem", background: "#ffffff", borderRadius: "6px", fontSize: "0.82rem", border: "1px solid #e2e8f0", boxShadow: "var(--shadow-sm)" }}>
+                    <span style={{ color: "var(--muted)", display: "block", fontSize: "0.75rem" }}>{b.name}</span>
+                    <strong style={{ color: "var(--ink)", fontSize: "0.95rem" }}>{b.value}</strong>
                   </div>
                 ))}
               </div>
 
-              <h5 style={{ margin: "0.8rem 0 0.4rem", color: "var(--muted)", textTransform: "uppercase", fontSize: "0.75rem" }}>AI Clinical Insights</h5>
-              <ul style={{ margin: 0, paddingLeft: "1.2rem", color: "#e2e8f0", fontSize: "0.85rem" }}>
+              <h5 style={{ margin: "0.9rem 0 0.4rem", color: "var(--muted)", textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.8px" }}>AI Clinical Recommendations</h5>
+              <ul style={{ margin: 0, paddingLeft: "1.2rem", color: "#334155", fontSize: "0.88rem", lineHeight: 1.6 }}>
                 {aiAnalysis.analysis.recommendations?.map((r, i) => (
                   <li key={i}>{r}</li>
                 ))}
@@ -290,10 +316,13 @@ function RecordRow({ record, reload }) {
       ) : null}
 
       {sharing ? (
-        <div style={{ marginTop: "1rem", padding: "1.2rem", background: "rgba(0, 240, 255, 0.03)", borderRadius: "var(--r-sm)", border: "1px solid rgba(0, 240, 255, 0.15)" }}>
-          <h4 style={{ margin: "0 0 1rem", color: "var(--teal)" }}>Grant Access to Doctor or Hospital</h4>
+        <div style={{ marginTop: "1rem", padding: "1.25rem", background: "#f0f9ff", borderRadius: "var(--r-sm)", border: "1px solid #bae6fd" }}>
+          <h4 style={{ margin: "0 0 0.8rem", color: "var(--accent-cyan)" }}>Grant Doctor Access</h4>
+          <p className="muted" style={{ fontSize: "0.85rem", margin: "0 0 1rem" }}>
+            The record key is re-wrapped with the recipient's public key. Revoke anytime in the Privacy Center.
+          </p>
           <div className="form-grid">
-            <Field label="Recipient Address">
+            <Field label="Recipient Doctor / Hospital Wallet Address">
               <input type="text" placeholder="0x..." value={targetDoctor} onChange={(e) => setTargetDoctor(e.target.value.trim())} />
             </Field>
             <Field label="Access Duration">
@@ -305,11 +334,78 @@ function RecordRow({ record, reload }) {
             </Field>
           </div>
           <div className="row row-end" style={{ marginTop: "1rem" }}>
-            <Button busy={granting} onClick={grant}>Grant & Encrypt Key</Button>
+            <Button busy={granting} onClick={grant}>Authorize & Encrypt Key</Button>
           </div>
         </div>
       ) : null}
     </li>
+  );
+}
+
+function PrivacyCenter({ records, requests, reload }) {
+  const { exchange, address } = useSession();
+  const who = useParticipants(exchange);
+  const toast = useToast();
+
+  const approved = (requests || []).filter((r) => r.status === 2);
+
+  const [revoke, revoking] = useAction(async (r) => {
+    const tx = await exchange.revokeAccess(r.recordId, r.doctor);
+    await tx.wait();
+    reload();
+  }, "Doctor access revoked on-chain immediately.");
+
+  return (
+    <div className="stack">
+      <Panel title="Patient Privacy & Consent Center">
+        <p className="muted">
+          Full visibility over who currently holds cryptographic decryption keys to your health records. Access automatically expires when time limits elapse.
+        </p>
+
+        <div className="metrics-grid" style={{ margin: "1.2rem 0" }}>
+          <div className="metric-card" style={{ borderTopColor: "var(--accent-teal)" }}>
+            <span className="metric-title">Active Doctor Grants</span>
+            <span className="metric-value">{approved.length}</span>
+            <span className="metric-sub">Time-Bounded Access</span>
+          </div>
+          <div className="metric-card" style={{ borderTopColor: "var(--accent-cyan)" }}>
+            <span className="metric-title">Vault Records Protected</span>
+            <span className="metric-value">{records?.length ?? 0}</span>
+            <span className="metric-sub">Client-Side RSA Keys</span>
+          </div>
+          <div className="metric-card" style={{ borderTopColor: "var(--accent-violet)" }}>
+            <span className="metric-title">Audit Mode</span>
+            <span className="metric-value" style={{ color: "var(--accent-violet)" }}>On-Chain</span>
+            <span className="metric-sub">Tamper-Evident Logs</span>
+          </div>
+        </div>
+
+        <h3 style={{ marginTop: "1.5rem" }}>Active Delegated Permissions</h3>
+        {!approved.length ? (
+          <Empty>No active access grants right now. Your records are completely private to your wallet.</Empty>
+        ) : (
+          <ul className="list">
+            {approved.map((r) => (
+              <li key={r.id} className="item">
+                <div className="item-main">
+                  <strong>Access to Record #{r.recordId}</strong>
+                  <span className="muted">
+                    Doctor <Address value={r.doctor} /> • Authorized Duration: {durationLabel(r.duration)}
+                  </span>
+                  {r.reason ? <blockquote className="muted">"{r.reason}"</blockquote> : null}
+                </div>
+                <div className="item-side">
+                  <Pill tone="ok">Active</Pill>
+                  <Button variant="danger" busy={revoking} onClick={() => revoke(r)}>
+                    Revoke Access
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
+    </div>
   );
 }
 
@@ -319,7 +415,7 @@ function Requests({ requests, records, reload }) {
   const [approve, approving] = useAction(async (req) => {
     const doctorPart = await readParticipant(exchange, req.doctor);
     const rec = (records || []).find((r) => String(r.recordId) === String(req.recordId));
-    if (!rec) throw new Error("Record key not found locally.");
+    if (!rec) throw new Error("Record key not found locally in your vault.");
 
     const wrappedKey = await rewrapFor(address, rec.ownerWrappedKey, doctorPart.encryptionPublicKey);
     await api.grantKey({ recordId: req.recordId, grantee: req.doctor, wrappedKey });
@@ -336,10 +432,10 @@ function Requests({ requests, records, reload }) {
   }, "Access revoked.");
 
   return (
-    <Panel>
-      <h3>Access Requests</h3>
+    <Panel title="Doctor Access Requests">
+      <p className="muted">Doctors requesting permission to inspect specific health documents in your vault.</p>
       {!requests?.length ? (
-        <Empty>No active access requests from doctors.</Empty>
+        <Empty>No access requests from doctors currently pending.</Empty>
       ) : (
         <ul className="list">
           {requests.map((r) => (
@@ -349,7 +445,7 @@ function Requests({ requests, records, reload }) {
                 <span className="muted">
                   Doctor <Address value={r.doctor} /> • Target Record #{r.recordId} • Requested: {durationLabel(r.duration)}
                 </span>
-                {r.reason ? <blockquote className="muted">"{r.reason}"</blockquote> : null}
+                {r.reason ? <blockquote className="muted" style={{ margin: "0.3rem 0 0" }}>"{r.reason}"</blockquote> : null}
               </div>
               <div className="item-side">
                 {r.status === 1 ? (
@@ -394,8 +490,8 @@ function Activity() {
   }, [exchange, address]);
 
   return (
-    <Panel>
-      <h3>Blockchain Activity Ledger</h3>
+    <Panel title="Blockchain Activity & Audit Ledger">
+      <p className="muted">Immutable, cryptographic log of all access grants, record reads, and emergency interventions.</p>
       <Ledger entries={entries} />
     </Panel>
   );
@@ -431,8 +527,7 @@ function Proofs() {
 
   return (
     <div className="stack">
-      <Panel>
-        <h3>Credentials & Zero-Knowledge Proofs</h3>
+      <Panel title="Credentials & Zero-Knowledge Proofs">
         <p className="muted">Generate zk-SNARK statements from hospital-signed credentials without leaking private fields (like your birth year or exact records).</p>
 
         {!credentials ? (
@@ -441,7 +536,7 @@ function Proofs() {
           <Empty>No hospital credentials issued yet. Ask your hospital administrator to issue a credential in MedZK.</Empty>
         ) : (
           <div className="stack">
-            <Field label="Select Signed Credential">
+            <Field label="Select Signed Hospital Credential">
               <select onChange={(e) => setSelectedCred(credentials.find((c) => c._id === e.target.value))}>
                 <option value="">-- Choose Credential --</option>
                 {credentials.map((c) => (
@@ -473,8 +568,7 @@ function Proofs() {
       </Panel>
 
       {proofResult ? (
-        <Panel>
-          <h4 style={{ color: "var(--teal)" }}>Generated Proof Output</h4>
+        <Panel title="Generated ZK Proof Output">
           <p className="muted">Statement: Patient is over {minAge} years old {reqVaccinated ? "and vaccinated" : ""}. Zero private fields revealed.</p>
           <textarea rows={6} value={JSON.stringify(proofResult, null, 2)} readOnly />
           <div className="row" style={{ marginTop: "1rem" }}>

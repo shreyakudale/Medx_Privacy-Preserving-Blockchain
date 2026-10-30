@@ -67,7 +67,12 @@ export async function listHospitals(exchange) {
 }
 
 /** Download via the gateway, decrypt locally, and open in a new tab. */
-export async function openRecord(address, recordId) {
+export async function openRecord(arg1, arg2) {
+  // Support both (address, recordId) and (recordId, address)
+  const isAddress = (x) => typeof x === "string" && /^0x[a-fA-F0-9]{40}$/.test(x);
+  const address = isAddress(arg1) ? arg1 : arg2;
+  const recordId = isAddress(arg1) ? arg2 : arg1;
+
   const payload = await api.download(recordId);
   const { blob, meta, hash } = await openDownload(address, payload);
   const url = URL.createObjectURL(blob);
@@ -81,5 +86,5 @@ export async function openRecord(address, recordId) {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  return { meta, auditTx: payload.auditTx, contentHash: payload.contentHash, computedHash: hash };
+  return { meta, auditTx: payload.auditTx, contentHash: payload.contentHash, computedHash: hash, url };
 }

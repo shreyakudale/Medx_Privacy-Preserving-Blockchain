@@ -36,7 +36,7 @@ export default function Doctor() {
         </div>
         <div className="metric-card">
           <span className="metric-title">Hospital Affiliate</span>
-          <span className="metric-value" style={{ fontSize: "1.2rem", color: "#fff" }}>{participant.hospital ? short(participant.hospital) : "Independent"}</span>
+          <span className="metric-value" style={{ fontSize: "1.2rem", color: "var(--ink)" }}>{participant.hospital ? short(participant.hospital) : "Independent"}</span>
           <span className="metric-sub">On-Chain Registered</span>
         </div>
         <div className="metric-card">
@@ -125,7 +125,7 @@ function FindRecords({ onRequested }) {
               </ul>
 
               {selected ? (
-                <div style={{ marginTop: "1rem", padding: "1.2rem", background: "rgba(0, 240, 255, 0.03)", borderRadius: "var(--r-sm)", border: "1px solid rgba(0, 240, 255, 0.15)" }}>
+                <div style={{ marginTop: "1rem", padding: "1.2rem", background: "#f0f9ff", borderRadius: "var(--r-sm)", border: "1px solid #bae6fd" }}>
                   <h4 style={{ color: "var(--teal)", margin: "0 0 1rem" }}>Request Permission</h4>
                   <div className="form-grid">
                     <Field label="Access Duration">

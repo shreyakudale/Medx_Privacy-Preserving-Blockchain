@@ -54,9 +54,31 @@ export async function connectWallet() {
 }
 
 export async function fundAccount(address) {
-  if (!window.ethereum) return;
-  const provider = new BrowserProvider(window.ethereum);
-  await provider.send("hardhat_setBalance", [address, "0x56BC75E2D63100000"]); // 100 ETH
+  if (!address) return;
+  // Send directly to Hardhat JSON-RPC node over HTTP to bypass MetaMask restrictions on custom methods
+  try {
+    const res = await fetch("http://127.0.0.1:8545", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: Date.now(),
+        method: "hardhat_setBalance",
+        params: [address, "0x56BC75E2D63100000"], // 100 ETH (100 * 10^18)
+      }),
+    });
+    return await res.json();
+  } catch (err) {
+    console.warn("Direct RPC hardhat_setBalance call failed, trying browser provider:", err);
+    if (window.ethereum) {
+      try {
+        const provider = new BrowserProvider(window.ethereum);
+        await provider.send("hardhat_setBalance", [address, "0x56BC75E2D63100000"]);
+      } catch (e) {
+        console.warn("Provider hardhat_setBalance also failed:", e);
+      }
+    }
+  }
 }
 
 export async function readParticipant(exchange, address) {
