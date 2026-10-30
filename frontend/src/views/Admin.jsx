@@ -3,6 +3,7 @@ import { ethers } from "ethers";
 import { useSession, useAction, Button, Field, Panel, Empty, Pill, Address, useToast } from "../components/ui.jsx";
 import { useLoad, listHospitals } from "../lib/hooks.js";
 import { deployment } from "../lib/chain.js";
+import { api } from "../lib/api.js";
 
 export default function Admin() {
   const { exchange } = useSession();
@@ -12,6 +13,7 @@ export default function Admin() {
     return Promise.all(hs.map(async (h) => ({ ...h, issuerKey: await exchange.hospitalIssuerKey(h.address) })));
   }, []);
   const [gateway, reloadGateway] = useLoad(() => exchange.gateway(), []);
+  const [systemStatus, reloadStatus] = useLoad(() => api.adminStatus().catch(() => null), []);
   const [form, setForm] = useState({ address: "", name: "", ax: "", ay: "" });
   const [newGateway, setNewGateway] = useState("");
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value.trim() }));
@@ -37,6 +39,7 @@ export default function Admin() {
     await tx.wait();
     setForm({ address: "", name: "", ax: "", ay: "" });
     reload();
+    reloadStatus();
   }, "Hospital registered on-chain & EdDSA key trusted!");
 
   const [revoke, revoking] = useAction(async (h) => {
@@ -44,6 +47,7 @@ export default function Admin() {
     const tx = await exchange.revokeIssuerKey(h.address);
     await tx.wait();
     reload();
+    reloadStatus();
   }, "Signing key revoked.");
 
   const [setGw, settingGw] = useAction(async () => {
@@ -51,13 +55,27 @@ export default function Admin() {
     await tx.wait();
     setNewGateway("");
     reloadGateway();
+    reloadStatus();
   }, "Gateway updated.");
+
+  const [sweep, sweeping] = useAction(async () => {
+    const res = await api.sweepPending();
+    toast(`🧹 Cleaned up ${res.removedCount || 0} orphaned uploads.`);
+    reloadStatus();
+  });
 
   return (
     <div className="stack">
       <header className="page-head">
-        <h1>Network Administration</h1>
-        <p>Manage trusted hospitals, register EdDSA BabyJubJub signing keys, and configure gateway addresses.</p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem" }}>
+          <div>
+            <h1>Network Administration</h1>
+            <p>Manage trusted hospitals, register EdDSA BabyJubJub signing keys, and configure gateway addresses.</p>
+          </div>
+          <Button variant="quiet" busy={sweeping} onClick={sweep} style={{ fontSize: "0.85rem" }}>
+            🧹 Sweep Orphaned Uploads
+          </Button>
+        </div>
       </header>
 
       <div className="metrics-grid">
@@ -67,26 +85,61 @@ export default function Admin() {
           <span className="metric-sub">On-Chain Whitelisted</span>
         </div>
         <div className="metric-card">
-          <span className="metric-title">Gateway Address</span>
-          <span className="metric-value" style={{ fontSize: "1.1rem" }}>{gateway ? gateway.slice(0, 10) + "..." : "Loading"}</span>
-          <span className="metric-sub">MongoDB Relay Wallet</span>
+          <span className="metric-title">Gateway Balance</span>
+          <span className="metric-value" style={{ fontSize: "1.4rem", color: systemStatus?.gateway?.balanceEth < 0.1 ? "var(--accent-red)" : "var(--accent-teal)" }}>
+            {systemStatus?.gateway?.balanceEth !== undefined ? `${systemStatus.gateway.balanceEth.toFixed(3)} ETH` : "Checking..."}
+          </span>
+          <span className="metric-sub">{systemStatus?.gateway?.matches ? "🟢 Gateway Synced" : "Relay Wallet"}</span>
         </div>
         <div className="metric-card">
           <span className="metric-title">Smart Contract</span>
-          <span className="metric-value" style={{ color: "var(--teal)" }}>MedicalDataExchange</span>
+          <span className="metric-value" style={{ color: "var(--accent-teal)" }}>MedicalDataExchange</span>
           <span className="metric-sub">Solidity v0.8.24</span>
         </div>
         <div className="metric-card">
-          <span className="metric-title">Network</span>
-          <span className="metric-value" style={{ color: "var(--violet)" }}>{deployment.network}</span>
+          <span className="metric-title">Network Block</span>
+          <span className="metric-value" style={{ color: "var(--accent-violet)" }}>#{systemStatus?.chain?.blockNumber ?? deployment.chainId}</span>
           <span className="metric-sub">Chain ID {deployment.chainId}</span>
         </div>
       </div>
 
+      {systemStatus ? (
+        <Panel title="Live Operational & Cluster Metrics">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(13rem, 1fr))", gap: "1rem" }}>
+            <div style={{ padding: "1rem", background: "#f8fafc", borderRadius: "var(--r-sm)", border: "1px solid var(--line)" }}>
+              <span style={{ fontSize: "0.75rem", color: "var(--muted)", textTransform: "uppercase", fontWeight: "700" }}>Platform Participants</span>
+              <div style={{ marginTop: "0.4rem", fontSize: "0.9rem", color: "var(--ink)", display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+                <div>👤 Patients: <strong>{systemStatus.participants.patients}</strong></div>
+                <div>🩺 Doctors: <strong>{systemStatus.participants.doctors}</strong></div>
+                <div>🏥 Hospitals: <strong>{systemStatus.participants.hospitals}</strong></div>
+              </div>
+            </div>
+
+            <div style={{ padding: "1rem", background: "#f8fafc", borderRadius: "var(--r-sm)", border: "1px solid var(--line)" }}>
+              <span style={{ fontSize: "0.75rem", color: "var(--muted)", textTransform: "uppercase", fontWeight: "700" }}>Audit Totals</span>
+              <div style={{ marginTop: "0.4rem", fontSize: "0.9rem", color: "var(--ink)", display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+                <div>📁 Encrypted Records: <strong>{systemStatus.totals.records}</strong></div>
+                <div>🔑 Active Access Requests: <strong>{systemStatus.totals.accessRequests}</strong></div>
+                <div>🛡️ ZK Proofs Verified: <strong>{systemStatus.totals.verifications}</strong></div>
+              </div>
+            </div>
+
+            <div style={{ padding: "1rem", background: "#f8fafc", borderRadius: "var(--r-sm)", border: "1px solid var(--line)" }}>
+              <span style={{ fontSize: "0.75rem", color: "var(--muted)", textTransform: "uppercase", fontWeight: "700" }}>System Health</span>
+              <div style={{ marginTop: "0.4rem", fontSize: "0.9rem", color: "var(--ink)", display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+                <div>🗄️ Database: <strong style={{ color: "var(--accent-teal)" }}>Connected</strong></div>
+                <div>⚡ Backend Uptime: <strong>{Math.floor(systemStatus.api.uptimeSeconds / 60)} min</strong></div>
+                <div>🧠 Memory: <strong>{systemStatus.api.memoryMb} MB</strong></div>
+              </div>
+            </div>
+          </div>
+        </Panel>
+      ) : null}
+
       <Panel title="Register New Hospital">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
           <p className="muted" style={{ margin: 0 }}>Register a hospital's wallet address and EdDSA BabyJubJub signing key on the blockchain.</p>
-          <Button variant="quiet" onClick={autofillDemoHospital} style={{ borderColor: "var(--teal)", color: "var(--teal)" }}>
+          <Button variant="quiet" onClick={autofillDemoHospital} style={{ borderColor: "var(--accent-teal)", color: "var(--accent-teal)" }}>
             ⚡ 1-Click Auto-Fill Demo Hospital
           </Button>
         </div>

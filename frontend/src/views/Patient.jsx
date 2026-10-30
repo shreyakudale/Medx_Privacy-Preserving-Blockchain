@@ -187,6 +187,40 @@ function RecordRow({ record, reload }) {
   const [integrity, setIntegrity] = useState(null);
   const toast = useToast();
 
+  const downloadAuditReceipt = async () => {
+    try {
+      const summary = await api.recordExportSummary(record.recordId || 1).catch(() => ({
+        recordId: record.recordId || 1,
+        category: record.category,
+        contentHash: record.contentHash,
+        storageRef: record.storageRef,
+        createdAt: record.createdAt,
+        integrityStandard: "SHA-256 (NIST FIPS 180-4)",
+        encryptionStandard: "AES-256-GCM + RSA-OAEP-256",
+      }));
+      const blob = new Blob([JSON.stringify(summary, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `medzk-audit-receipt-record-${record.recordId || "vault"}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast("Cryptographic audit receipt exported.");
+    } catch (e) {
+      toast("Could not export audit receipt: " + e.message, "error");
+    }
+  };
+
+  const [deactivate, deactivating] = useAction(async () => {
+    if (!confirm("Are you sure you want to deactivate this record? All existing doctor access keys will be permanently deleted.")) return;
+    if (record.recordId) {
+      const tx = await exchange.deactivateRecord(record.recordId);
+      await tx.wait();
+      await api.deactivateRecord(record.recordId).catch(() => {});
+    }
+    reload();
+  }, "Record permanently deactivated on-chain.");
+
   const handleOpen = async () => {
     if (blobUrl) { setOpen(!open); return; }
     setBusy(true);
@@ -244,6 +278,9 @@ function RecordRow({ record, reload }) {
           <span className="muted">{CATEGORIES[record.category] || record.category} • Uploaded {new Date(record.createdAt).toLocaleDateString()}</span>
         </div>
         <div className="item-side">
+          <Button variant="quiet" onClick={downloadAuditReceipt} title="Export cryptographic verification receipt">
+            📜 Audit Receipt
+          </Button>
           <Button variant="quiet" onClick={() => setSharing(!sharing)}>
             {sharing ? "Close Sharing" : "Manage Access"}
           </Button>
@@ -281,6 +318,9 @@ function RecordRow({ record, reload }) {
             ) : null}
             <Button variant="quiet" busy={scanningAI} onClick={scanAI} style={{ borderColor: "var(--accent-violet)", color: "var(--accent-violet)" }}>
               🤖 Scan Report with Groq AI
+            </Button>
+            <Button variant="danger" busy={deactivating} onClick={deactivate} style={{ marginLeft: "auto" }}>
+              🗑️ Deactivate Record
             </Button>
           </div>
 

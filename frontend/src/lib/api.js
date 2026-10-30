@@ -48,4 +48,11 @@ export const api = {
   myCredentials: () => request("/credentials/mine"),
   shareProof: (body) => request("/credentials/proofs", { method: "POST", body }),
   proofInbox: () => request("/credentials/proofs/inbox"),
+
+  // Admin and Audit Endpoints
+  adminStatus: () => request("/admin/status"),
+  sweepPending: () => request("/admin/sweep-pending", { method: "POST" }),
+  deactivateRecord: (recordId) => request(`/records/${recordId}`, { method: "DELETE" }),
+  recordExportSummary: (recordId) => request(`/records/${recordId}/export-summary`),
+  vaultAuditStats: () => request("/records/stats/audit"),
 };

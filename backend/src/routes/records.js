@@ -257,3 +257,68 @@ recordsRouter.post(
     });
   })
 );
+
+
+/**
+ * Patient Record Deactivation & Key Erasure Endpoint (HIPAA/GDPR Data Sovereignty)
+ */
+recordsRouter.delete(
+  "/:recordId",
+  asyncRoute(async (req, res) => {
+    const recordId = Number(req.params.recordId);
+    const onChain = await getRecord(recordId);
+    if (!onChain || onChain.owner.toLowerCase() !== req.user) {
+      return res.status(403).json({ error: "Only the patient who owns this record can deactivate it." });
+    }
+    await RecordMeta.updateOne({ recordId }, { status: "deactivated" });
+    await WrappedKey.deleteMany({ recordId });
+    res.json({ ok: true, message: `Record #${recordId} deactivated and decryption keys erased.` });
+  })
+);
+
+/**
+ * Cryptographic Audit Summary Export for Patient Records
+ */
+recordsRouter.get(
+  "/:recordId/export-summary",
+  asyncRoute(async (req, res) => {
+    const recordId = Number(req.params.recordId);
+    const meta = await RecordMeta.findOne({ recordId });
+    if (!meta) return res.status(404).json({ error: "Record not found." });
+    if (meta.owner.toLowerCase() !== req.user) {
+      return res.status(403).json({ error: "Access denied." });
+    }
+    const onChain = await getRecord(recordId);
+    const keys = await WrappedKey.find({ recordId, grantee: { $ne: req.user } });
+    res.json({
+      recordId,
+      category: meta.category,
+      contentHash: meta.contentHash,
+      storageRef: meta.storageRef,
+      createdAt: meta.createdAt,
+      active: onChain ? onChain.active : false,
+      delegatedDoctorGrantees: keys.map(k => k.grantee),
+      integrityStandard: "SHA-256 (NIST FIPS 180-4)",
+      encryptionStandard: "AES-256-GCM + RSA-OAEP-256",
+    });
+  })
+);
+
+/**
+ * Patient Health Vault Audit Metrics
+ */
+recordsRouter.get(
+  "/stats/audit",
+  asyncRoute(async (req, res) => {
+    const myRecords = await RecordMeta.find({ owner: req.user });
+    const activeRecords = myRecords.filter((r) => r.status === "active");
+    const myRecordIds = myRecords.map((r) => r.recordId).filter(Boolean);
+    const activeGrants = await WrappedKey.countDocuments({ recordId: { $in: myRecordIds }, grantee: { $ne: req.user } });
+    res.json({
+      totalRecords: myRecords.length,
+      activeRecords: activeRecords.length,
+      delegatedDoctorGrants: activeGrants,
+      lastUpdated: new Date(),
+    });
+  })
+);

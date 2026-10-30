@@ -7,10 +7,13 @@ import { authRouter } from "./auth.js";
 import { checkGatewayConfig, exchange } from "./chain.js";
 import { recordsRouter } from "./routes/records.js";
 import { credentialsRouter } from "./routes/credentials.js";
+import { adminRouter } from "./routes/admin.js";
+import { securityHeaders } from "./security.js";
 
 const app = express();
 app.use(cors({ origin: config.corsOrigin }));
 app.use(express.json({ limit: "2mb" }));
+app.use(securityHeaders);
 
 app.get("/api/health", async (_req, res) => {
   res.json({ ok: true, contract: await exchange.getAddress() });
@@ -19,6 +22,7 @@ app.get("/api/health", async (_req, res) => {
 app.use("/api/auth", authRouter);
 app.use("/api/records", recordsRouter);
 app.use("/api/credentials", credentialsRouter);
+app.use("/api/admin", adminRouter);
 
 // Errors: never leak internals, but keep contract revert reasons readable.
 app.use((err, _req, res, _next) => {

@@ -15,6 +15,24 @@ const baseWallet = new ethers.Wallet(config.gatewayPrivateKey, provider);
 // NonceManager lets several logAccess transactions be sent concurrently
 export const gatewaySigner = new ethers.NonceManager(baseWallet);
 
+export const claimVerifier = new ethers.Contract(
+  deployment.ClaimVerifier.address,
+  deployment.ClaimVerifier.abi,
+  provider
+);
+
+export const deploymentInfo = {
+  network: deployment.network,
+  chainId: deployment.chainId,
+  deployBlock: deployment.deployBlock || 0,
+  exchange: deployment.MedicalDataExchange.address,
+  claimVerifier: deployment.ClaimVerifier.address,
+};
+
+export async function gatewayAddress() {
+  return baseWallet.getAddress();
+}
+
 export const exchange = new ethers.Contract(
   deployment.MedicalDataExchange.address,
   deployment.MedicalDataExchange.abi,
